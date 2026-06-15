@@ -329,7 +329,7 @@ class Parser
                         // But overwriting is allowed when a merge node is used in current block.
                         if ($allowOverwrite || !isset($data[$key])) {
                             if (!$allowOverwrite && \array_key_exists($key, $data)) {
-                                throw new ParseException(\sprintf('Duplicate key "%s" detected.', $key), $this->getRealCurrentLineNb() + 1, $this->currentLine);
+                                trigger_deprecation('symfony/yaml', '7.2', 'Duplicate key "%s" detected on line %d whilst parsing YAML. Silent handling of duplicate mapping keys in YAML is deprecated and will throw a ParseException in 8.0.', $key, $this->getRealCurrentLineNb() + 1);
                             }
 
                             if (null !== $subTag) {
@@ -354,7 +354,7 @@ class Parser
                             $data += $value;
                         } elseif ($allowOverwrite || !isset($data[$key])) {
                             if (!$allowOverwrite && \array_key_exists($key, $data)) {
-                                throw new ParseException(\sprintf('Duplicate key "%s" detected.', $key), $this->getRealCurrentLineNb() + 1, $this->currentLine);
+                                trigger_deprecation('symfony/yaml', '7.2', 'Duplicate key "%s" detected on line %d whilst parsing YAML. Silent handling of duplicate mapping keys in YAML is deprecated and will throw a ParseException in 8.0.', $key, $this->getRealCurrentLineNb() + 1);
                             }
 
                             // Spec: Keys MUST be unique; first one wins.
@@ -374,7 +374,7 @@ class Parser
                     // But overwriting is allowed when a merge node is used in current block.
                     if ($allowOverwrite || !isset($data[$key])) {
                         if (!$allowOverwrite && \array_key_exists($key, $data)) {
-                            throw new ParseException(\sprintf('Duplicate key "%s" detected.', $key), $this->getRealCurrentLineNb() + 1, $this->currentLine);
+                            trigger_deprecation('symfony/yaml', '7.2', 'Duplicate key "%s" detected on line %d whilst parsing YAML. Silent handling of duplicate mapping keys in YAML is deprecated and will throw a ParseException in 8.0.', $key, $this->getRealCurrentLineNb() + 1);
                         }
 
                         $data[$key] = $value;
@@ -1032,7 +1032,7 @@ class Parser
         $this->offset += $count;
 
         // remove leading comments
-        $trimmedValue = preg_replace('#^(?>(\#.*?\n))+#s', '', $value, -1, $count);
+        $trimmedValue = preg_replace('#^(?:\#[^\n]*+\n)++#', '', $value, -1, $count);
         if (1 === $count) {
             // items have been removed, update the offset
             $this->offset += substr_count($value, "\n") - substr_count($trimmedValue, "\n");
@@ -1230,18 +1230,6 @@ class Parser
         return substr($this->currentLine, $offset, $cursor - $offset);
     }
 
-    private function lexInlineAnchorOrAlias(int &$cursor): string
-    {
-        $offset = $cursor;
-        ++$cursor;
-
-        while ($cursor < \strlen($this->currentLine) && !\in_array($this->currentLine[$cursor], [' ', "\t", ',', '[', ']', '{', '}'], true)) {
-            ++$cursor;
-        }
-
-        return substr($this->currentLine, $offset, $cursor - $offset);
-    }
-
     private function lexInlineMapping(int &$cursor = 0, bool $consumeUntilEol = true): string
     {
         return $this->lexInlineStructure($cursor, '}', $consumeUntilEol);
@@ -1276,10 +1264,6 @@ class Parser
                         break;
                     case '[':
                         $value .= $this->lexInlineSequence($cursor, false);
-                        break;
-                    case '&':
-                    case '*':
-                        $value .= $this->lexInlineAnchorOrAlias($cursor);
                         break;
                     case $closingTag:
                         $value .= $this->currentLine[$cursor];

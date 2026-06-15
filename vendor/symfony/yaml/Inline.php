@@ -254,10 +254,6 @@ class Inline
             $output[] = \sprintf('%s: %s', self::dump($key, $keyFlags), self::dump($val, $flags));
         }
 
-        if (!$output) {
-            return '{}';
-        }
-
         return \sprintf('{ %s }', implode(', ', $output));
     }
 
@@ -387,22 +383,6 @@ class Inline
                 }
 
                 $tag = self::parseTag($sequence, $i, $flags);
-                $anchorRef = self::parseAnchor($sequence, $i);
-                if (null !== $anchorRef && null === $tag) {
-                    $tag = self::parseTag($sequence, $i, $flags);
-                }
-
-                if (null !== $anchorRef && (!isset($sequence[$i]) || ',' === $sequence[$i] || ']' === $sequence[$i])) {
-                    $value = null;
-                    $references[$anchorRef] = $value;
-                    if (null !== $tag && '' !== $tag) {
-                        $value = new TaggedValue($tag, $value);
-                    }
-                    $output[] = $value;
-                    $lastToken = 'value';
-                    continue;
-                }
-
                 switch ($sequence[$i]) {
                     case '[':
                         // nested sequence
@@ -413,6 +393,7 @@ class Inline
                         $value = self::parseMapping($state, $sequence, $flags, $i, $references);
                         break;
                     default:
+                        $hasAnchorAtStart = null === $tag && isset($sequence[$i]) && '&' === $sequence[$i];
                         $value = self::parseScalar($sequence, $flags, [',', ']'], $i, null === $tag, $references, $isQuoted, $state);
 
                         // the value can be an array if a reference has been resolved to an array var
@@ -448,11 +429,12 @@ class Inline
                             }
                         }
 
-                        --$i;
-                }
+                        if ($hasAnchorAtStart && !$isQuoted && \is_string($value) && '' !== $value && '&' === $value[0] && Parser::preg_match(Parser::REFERENCE_PATTERN, $value, $matches)) {
+                            $value = '' === $matches['value'] ? null : $matches['value'];
+                            $references[$matches['ref']] = $value;
+                        }
 
-                if (null !== $anchorRef) {
-                    $references[$anchorRef] = $value;
+                        --$i;
                 }
 
                 if (null !== $tag && '' !== $tag) {
@@ -544,31 +526,10 @@ class Inline
                     }
 
                     $tag = self::parseTag($mapping, $i, $flags);
-                    $anchorRef = self::parseAnchor($mapping, $i);
-                    if (null !== $anchorRef && null === $tag) {
-                        $tag = self::parseTag($mapping, $i, $flags);
-                    }
-
-                    if (null !== $anchorRef && (!isset($mapping[$i]) || \in_array($mapping[$i], [',', '}', "\n"], true))) {
-                        $value = null;
-                        $references[$anchorRef] = $value;
-                        if ('<<' !== $key) {
-                            if ($allowOverwrite || !isset($output[$key])) {
-                                $output[$key] = null !== $tag ? new TaggedValue($tag, $value) : $value;
-                            } elseif (isset($output[$key])) {
-                                throw new ParseException(\sprintf('Duplicate key "%s" detected.', $key), self::$parsedLineNumber + 1, $mapping);
-                            }
-                        }
-                        continue 2;
-                    }
-
                     switch ($mapping[$i]) {
                         case '[':
                             // nested sequence
                             $value = self::parseSequence($state, $mapping, $flags, $i, $references);
-                            if (null !== $anchorRef) {
-                                $references[$anchorRef] = $value;
-                            }
                             // Spec: Keys MUST be unique; first one wins.
                             // Parser cannot abort this mapping earlier, since lines
                             // are processed sequentially.
@@ -590,9 +551,6 @@ class Inline
                         case '{':
                             // nested mapping
                             $value = self::parseMapping($state, $mapping, $flags, $i, $references);
-                            if (null !== $anchorRef) {
-                                $references[$anchorRef] = $value;
-                            }
                             // Spec: Keys MUST be unique; first one wins.
                             // Parser cannot abort this mapping earlier, since lines
                             // are processed sequentially.
@@ -610,10 +568,8 @@ class Inline
                             }
                             break;
                         default:
+                            $hasAnchorAtStart = null === $tag && isset($mapping[$i]) && '&' === $mapping[$i];
                             $value = self::parseScalar($mapping, $flags, [',', '}', "\n"], $i, null === $tag, $references, $isValueQuoted, $state);
-                            if (null !== $anchorRef) {
-                                $references[$anchorRef] = $value;
-                            }
                             // Spec: Keys MUST be unique; first one wins.
                             // Parser cannot abort this mapping earlier, since lines
                             // are processed sequentially.
@@ -621,6 +577,11 @@ class Inline
                             if ('<<' === $key) {
                                 $output += $value;
                             } elseif ($allowOverwrite || !isset($output[$key])) {
+                                if ($hasAnchorAtStart && !$isValueQuoted && \is_string($value) && '' !== $value && '&' === $value[0] && !self::isBinaryString($value) && Parser::preg_match(Parser::REFERENCE_PATTERN, $value, $matches)) {
+                                    $value = '' === $matches['value'] ? null : $matches['value'];
+                                    $references[$matches['ref']] = $value;
+                                }
+
                                 if (null !== $tag) {
                                     $output[$key] = new TaggedValue($tag, $value);
                                 } else {
@@ -704,13 +665,7 @@ class Inline
                                 throw new ParseException('Missing value for tag "!php/object".', self::$parsedLineNumber + 1, $scalar, self::$parsedFilename);
                             }
 
-                            $serialized = self::parseScalar(substr($scalar, 12));
-
-                            if (!\is_scalar($serialized ?? '') && !$serialized instanceof \Stringable) {
-                                throw new ParseException(\sprintf('The "!php/object" tag only supports a string value, got "%s".', get_debug_type($serialized)), self::$parsedLineNumber + 1, $scalar, self::$parsedFilename);
-                            }
-
-                            return unserialize((string) $serialized);
+                            return unserialize(self::parseScalar(substr($scalar, 12)));
                         }
 
                         if (self::$exceptionOnInvalidType) {
@@ -725,15 +680,7 @@ class Inline
                             }
 
                             $i = 0;
-                            $const = self::parseScalar(substr($scalar, 11), 0, null, $i, false);
-
-                            if (!\is_scalar($const ?? '') && !$const instanceof \Stringable) {
-                                throw new ParseException(\sprintf('The "!php/const" tag only supports a string value, got "%s".', get_debug_type($const)), self::$parsedLineNumber + 1, $scalar, self::$parsedFilename);
-                            }
-
-                            $const = (string) $const;
-
-                            if (\defined($const)) {
+                            if (\defined($const = self::parseScalar(substr($scalar, 11), 0, null, $i, false))) {
                                 return \constant($const);
                             }
 
@@ -752,12 +699,6 @@ class Inline
 
                             $i = 0;
                             $enumName = self::parseScalar(substr($scalar, 10), 0, null, $i, false);
-
-                            if (!\is_scalar($enumName ?? '') && !$enumName instanceof \Stringable) {
-                                throw new ParseException(\sprintf('The "!php/enum" tag only supports a string value, got "%s".', get_debug_type($enumName)), self::$parsedLineNumber + 1, $scalar, self::$parsedFilename);
-                            }
-
-                            $enumName = (string) $enumName;
                             $useName = str_contains($enumName, '::');
                             $enum = $useName ? strstr($enumName, '::', true) : $enumName;
 
@@ -863,21 +804,6 @@ class Inline
         }
 
         return (string) $scalar;
-    }
-
-    private static function parseAnchor(string $value, int &$i): ?string
-    {
-        if (!isset($value[$i]) || '&' !== $value[$i]) {
-            return null;
-        }
-
-        if (!Parser::preg_match('/^&(?P<ref>[^ \t,\[\]\{\}\n]++)\s*+/A', substr($value, $i), $matches)) {
-            return null;
-        }
-
-        $i += \strlen($matches[0]);
-
-        return $matches['ref'];
     }
 
     private static function parseTag(string $value, int &$i, int $flags): ?string
