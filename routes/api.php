@@ -26,7 +26,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::get('/user', function (Request $request) {return $request->user();});
     Route::post('/logout', [AuthController::class, 'logout']);
-      
+
+    // Route::get('/user-permissions', [ProjectChatController::class, 'getUserPermissions']);
     /*
     |--------------------------------------------------------------------------
     | Project-Chat Routes
@@ -70,9 +71,6 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/client', [ClientController::class, 'Index'])->name('client.index');
-
-
-    Route::get('/user-permissions', [ProjectChatController::class, 'getUserPermissions']);
 
 });
 

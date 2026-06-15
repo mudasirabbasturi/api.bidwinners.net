@@ -23,7 +23,7 @@ class ProjectChatController extends Controller
             $query->where('project_status', $status);
         }
 
-        $projects = $query->paginate(500);
+        $projects = $query->paginate(50);
 
         $projectIds = collect($projects->items())->pluck('id')->toArray();
 
