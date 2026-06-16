@@ -7,70 +7,54 @@ use App\Http\Controllers\DirectChatController;
 use App\Http\Controllers\ProjectChatController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ClientController;
+use Laravel\Sanctum\PersonalAccessToken;
 
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
-
+// PUBLIC
 Route::post('/login', [AuthController::class, 'login']);
 
-/*
-|--------------------------------------------------------------------------
-| Protected Routes
-|--------------------------------------------------------------------------
-*/
+Route::group(['middleware' => function ($request, $next) {
+    $token = $request->bearerToken();
+    if (!$token) {
+        return response()->json(['message' => 'Unauthorized'], 401);
+    }
+    $accessToken = PersonalAccessToken::findToken($token);
+    if (!$accessToken) {
+        return response()->json(['message' => 'Invalid token'], 401);
+    }
+    $user = $accessToken->tokenable;
+    if (!$user) {
+        return response()->json(['message' => 'Invalid token'], 401);
+    }
+    auth()->setUser($user);
+    return $next($request);
+}], function () {
 
-Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
     
-    Route::get('/user', function (Request $request) {return $request->user();});
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Route::get('/user-permissions', [ProjectChatController::class, 'getUserPermissions']);
-    /*
-    |--------------------------------------------------------------------------
-    | Project-Chat Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/chat-project-list', [ProjectChatController::class, 'chatProjectList'])->name('chat.project.list');
-    Route::get('/chat-project-messages/{project_id}', [ProjectChatController::class, 'getProjectChatMessages'])->name('chat.project.messages');
-    Route::post('/chat-project-send-message', [ProjectChatController::class, 'sendProjectMessage'])->name('chat.project.send.message');
-    Route::delete('/chat-project-message/{id}', [ProjectChatController::class, 'deleteProjectMessage'])->name('chat.project.message.delete');
+    Route::get('/chat-project-list', [ProjectChatController::class, 'chatProjectList']);
+    Route::get('/chat-project-messages/{project_id}', [ProjectChatController::class, 'getProjectChatMessages']);
+    Route::post('/chat-project-send-message', [ProjectChatController::class, 'sendProjectMessage']);
+    Route::delete('/chat-project-message/{id}', [ProjectChatController::class, 'deleteProjectMessage']);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Direct-Chat Routes
-    |--------------------------------------------------------------------------
-    */
+    Route::get('/chat-user-list', [DirectChatController::class, 'chatUserList']);
+    Route::get('/direct-chat-messages/{receiver_id}', [DirectChatController::class, 'getDirectMessages']);
+    Route::post('/direct-chat-send-message', [DirectChatController::class, 'sendDirectMessage']);
+    Route::delete('/direct-chat-message/{id}', [DirectChatController::class, 'deleteDirectMessage']);
 
-    Route::get('/chat-user-list', [DirectChatController::class, 'chatUserList'])->name('chat.user.list');
-    Route::get('/direct-chat-messages/{receiver_id}', [DirectChatController::class, 'getDirectMessages'])->name('direct.chat.messages');
-    Route::post('/direct-chat-send-message', [DirectChatController::class, 'sendDirectMessage'])->name('direct.chat.send.message');
-    Route::delete('/direct-chat-message/{id}', [DirectChatController::class, 'deleteDirectMessage'])->name('direct.chat.message.delete');
-
-    /*
-    |--------------------------------------------------------------------------
-    | Project Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/projects', [ProjectController::class, 'Index'])->name('project.index');
-    Route::post('/project/create', [ProjectController::class, 'Create'])->name('project.create');
-    Route::get('/project-view/{id}', [ProjectController::class, 'View'])->name('project.view');
-    Route::get('/project-edit/{id}', [ProjectController::class, 'Edit'])->name('project.edit');
-    Route::put('/project-update/{id}', [ProjectController::class, 'Update'])->name('project.update');
-    Route::get('project/column/{id}', [ProjectController::class, 'Column'])->name('project.column');
-    Route::put('/project/column/update/{id}', [ProjectController::class, 'ColumnUpdate'])->name('project.column.update');
-    Route::post('/project/team-member/join/{ProjectId}', [ProjectController::class, 'JoinProject'])->name('JoinProject');
-    Route::put('/project/team-member/update/{TeamMemberId}', [ProjectController::class, 'EditJoinProject'])->name('EditJoinProject');
-    Route::delete('/project/team-member/delete/{TeamMemberId}', [ProjectController::class, 'DeleteJoinProject'])->name('DeleteJoinProject');
+    Route::get('/projects', [ProjectController::class, 'Index']);
+    Route::post('/project/create', [ProjectController::class, 'Create']);
+    Route::get('/project-view/{id}', [ProjectController::class, 'View']);
+    Route::get('/project-edit/{id}', [ProjectController::class, 'Edit']);
+    Route::put('/project-update/{id}', [ProjectController::class, 'Update']);
+    Route::get('project/column/{id}', [ProjectController::class, 'Column']);
+    Route::put('/project/column/update/{id}', [ProjectController::class, 'ColumnUpdate']);
+    Route::post('/project/team-member/join/{ProjectId}', [ProjectController::class, 'JoinProject']);
+    Route::put('/project/team-member/update/{TeamMemberId}', [ProjectController::class, 'EditJoinProject']);
+    Route::delete('/project/team-member/delete/{TeamMemberId}', [ProjectController::class, 'DeleteJoinProject']);
     
-    /*
-    |--------------------------------------------------------------------------
-    | Client Routes
-    |--------------------------------------------------------------------------
-    */
-    Route::get('/client', [ClientController::class, 'Index'])->name('client.index');
-
+    Route::get('/client', [ClientController::class, 'Index']);
 });
-
