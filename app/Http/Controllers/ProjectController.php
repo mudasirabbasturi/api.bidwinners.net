@@ -505,30 +505,31 @@ class ProjectController extends Controller
     | PROJECT JOIN DELETE
     |-----------------------------------------
     */
-    // public function DeleteJoinProject($id)
-    // {
-    //     try {
-    //         $teamMember = DB::table('project_team_members')->where('id', $id)->first();
+    public function DeleteJoinProject($id)
+    {
+        try {
+            $teamMember = DB::table('project_team_members')->where('id', $id)->first();
             
-    //         if (!$teamMember) {
-    //             return response()->json([
-    //                 'status' => false,
-    //                 'message' => 'Team member record not found',
-    //             ], 404);
-    //         }
+            if (!$teamMember) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Team member record not found',
+                ], 404);
+            }
 
-    //         DB::table('project_team_members')->where('id', $id)->delete();
+            DB::table('project_team_members')->where('id', $id)->delete();
 
-    //         return response()->json([
-    //             'status' => true,
-    //             'message' => 'Successfully removed from joined project.',
-    //         ], 200);
-    //     } catch (\Exception $e) {
-    //         return response()->json([
-    //             'status' => false,
-    //             'message' => 'Failed to leave project. ' . $e->getMessage(),
-    //         ], 500);
-    //     }
-    // }
-
+            return response()->json([
+                'status' => true,
+                'message' => 'Successfully removed from joined project.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Failed to leave project. ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+
+
