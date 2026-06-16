@@ -8,6 +8,7 @@ use App\Http\Controllers\ProjectChatController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ClientController;
 use Laravel\Sanctum\PersonalAccessToken;
+use App\Http\Controllers\PermissionController;
 
 // PUBLIC
 Route::post('/login', [AuthController::class, 'login']);
@@ -57,4 +58,7 @@ Route::group(['middleware' => function ($request, $next) {
     Route::delete('/project/team-member/delete/{TeamMemberId}', [ProjectController::class, 'DeleteJoinProject']);
     
     Route::get('/client', [ClientController::class, 'Index']);
+
+    Route::get('/permissions',  [PermissionController::class, 'Index'])->name('permission.index');
+    Route::get('/user-permissions', [PermissionController::class, 'UserPermissions'])->name('UserPermissions');
 });
