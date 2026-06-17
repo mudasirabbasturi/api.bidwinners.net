@@ -16,14 +16,16 @@ class ProjectChatController extends Controller
         $status = $request->get('status', 'All');
 
         $query = DB::table('projects')
-            ->select('id', 'project_title as name', 'project_status')
+            ->select('id', 'project_title as name', 'project_status' , 'project_pricing','project_due_date')
             ->orderBy('id', 'desc');
 
-        if ($status !== 'All') {
+        if ($status === 'All') {
+            $query->where('project_status', '!=', 'Delivered');
+        } else {
             $query->where('project_status', $status);
         }
+        $projects = $query->paginate(100);
 
-        $projects = $query->paginate(50);
 
         $projectIds = collect($projects->items())->pluck('id')->toArray();
 

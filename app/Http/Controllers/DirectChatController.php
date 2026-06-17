@@ -27,6 +27,7 @@ class DirectChatController extends Controller
 
         $users = DB::table('users')
             ->where('id', '!=', $authId)
+            ->where('status', 'active')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
@@ -123,6 +124,8 @@ class DirectChatController extends Controller
 
         return response()->json(['chat_messages' => $formattedMessages]);
     }
+
+    public function getUserConversations() {}
 
     /**
      * POST /api/direct-chat-send-message
