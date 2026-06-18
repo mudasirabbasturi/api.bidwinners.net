@@ -18,6 +18,7 @@ class DirectChatController extends Controller
      * GET /api/chat-user-list
      * Returns all users (except the authenticated user) with id and name only.
      */
+
     public function chatUserList(Request $request)
     {
         if (!$request->user()) {
@@ -25,16 +26,24 @@ class DirectChatController extends Controller
         }
         $authId = $request->user()->id;
 
+        // Single subquery to get the latest profile picture per user
+        $latestMedia = DB::table('media')
+            ->select('user_id', 'file_path')
+            ->where('category', 'profile')
+            ->whereRaw('id IN (SELECT MAX(id) FROM media WHERE category = "profile" GROUP BY user_id)');
+
         $users = DB::table('users')
-            ->where('id', '!=', $authId)
-            ->where('status', 'active')
-            ->select('id', 'name')
-            ->orderBy('name')
+            ->where('users.id', '!=', $authId)
+            ->where('users.status', 'active')
+            ->leftJoinSub($latestMedia, 'latest_media', function($join) {
+                $join->on('users.id', '=', 'latest_media.user_id');
+            })
+            ->select('users.id', 'users.name', 'latest_media.file_path as profile_picture')
+            ->orderBy('users.name')
             ->get();
 
         return response()->json(['users' => $users]);
     }
-
     /*
     |--------------------------------------------------------------------------
     | Direct Chat – Messages

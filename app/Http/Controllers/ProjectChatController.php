@@ -11,24 +11,97 @@ use Illuminate\Support\Facades\DB;
 class ProjectChatController extends Controller
 {
 
+    // public function chatProjectList(Request $request)
+    // {
+    //     $status = $request->get('status', 'All');
+
+    //     $query = DB::table('projects')
+    //         ->select('id', 'project_title as name', 'project_status' , 'project_pricing','project_due_date')
+    //         ->whereNull('projects.deleted_at')
+    //         ->orderBy('id', 'desc');
+
+    //     if ($status === 'All') {
+    //        $query->whereNotIn('project_status', ['Deliver', 'Completed']);
+    //     } else {
+    //         $query->where('project_status', $status);
+    //     }
+    //     $projects = $query->paginate(100);
+
+
+    //     $projectIds = collect($projects->items())->pluck('id')->toArray();
+
+    //     $teamMembers = DB::table('project_team_members')
+    //         ->join('users', 'users.id', '=', 'project_team_members.user_id')
+    //         ->leftJoin('media', function ($join) {
+    //             $join->on('users.id', '=', 'media.user_id')
+    //                 ->where('media.category', '=', 'profile');
+    //         })
+    //         ->select(
+    //             'project_team_members.project_id',
+    //             'project_team_members.id as team_member_id',
+    //             'project_team_members.user_id',
+    //             'project_team_members.steps',
+    //             'project_team_members.status',
+    //             'users.name as user_name',
+    //             'media.id as media_id',
+    //             'media.file_path',
+    //             'media.category'
+    //         )
+    //         ->whereIn('project_team_members.project_id', $projectIds)
+    //         ->get()
+    //         ->groupBy('project_id');
+
+    //     foreach ($projects as $project) {
+    //         $members = $teamMembers[$project->id] ?? collect();
+
+    //         $project->team_members = $members->map(function ($item) {
+    //             return [
+    //                 'id' => $item->team_member_id,
+    //                 'project_id' => $item->project_id,
+    //                 'user_id' => $item->user_id,
+    //                 'steps' => $item->steps,
+    //                 'status' => $item->status,
+    //                 'user' => [
+    //                     'id' => $item->user_id,
+    //                     'name' => $item->user_name,
+    //                     'media' => $item->media_id ? [
+    //                         'id' => $item->media_id,
+    //                         'user_id' => $item->user_id,
+    //                         'file_path' => $item->file_path,
+    //                         'category' => $item->category,
+    //                     ] : null
+    //                 ]
+    //             ];
+    //         })->values()->all();
+    //     }
+     
+    //     return response()->json([
+    //         'projects' => $projects,
+    //     ]);
+    // }
+
+    // let count = project.invitations_count; // Use this for your UI badge count
+    // let pendingInvites = project.invitations.filter(i => i.status === 'pending');
+
     public function chatProjectList(Request $request)
     {
         $status = $request->get('status', 'All');
 
         $query = DB::table('projects')
             ->select('id', 'project_title as name', 'project_status' , 'project_pricing','project_due_date')
+            ->whereNull('projects.deleted_at')
             ->orderBy('id', 'desc');
 
         if ($status === 'All') {
-            $query->where('project_status', '!=', 'Delivered');
+        $query->whereNotIn('project_status', ['Deliver', 'Completed']);
         } else {
             $query->where('project_status', $status);
         }
         $projects = $query->paginate(100);
 
-
         $projectIds = collect($projects->items())->pluck('id')->toArray();
 
+        // 1. Fetch Team Members
         $teamMembers = DB::table('project_team_members')
             ->join('users', 'users.id', '=', 'project_team_members.user_id')
             ->leftJoin('media', function ($join) {
@@ -50,9 +123,28 @@ class ProjectChatController extends Controller
             ->get()
             ->groupBy('project_id');
 
-        foreach ($projects as $project) {
-            $members = $teamMembers[$project->id] ?? collect();
+        // 2. Fetch Project Invites (with sender and receiver user details)
+        $projectInvites = DB::table('project_invites')
+            ->join('users as senders', 'senders.id', '=', 'project_invites.sender_id')
+            ->join('users as receivers', 'receivers.id', '=', 'project_invites.receiver_id')
+            ->select(
+                'project_invites.id as invite_id',
+                'project_invites.project_id',
+                'project_invites.sender_id',
+                'project_invites.receiver_id',
+                'project_invites.status',
+                'project_invites.created_at',
+                'senders.name as sender_name',
+                'receivers.name as receiver_name'
+            )
+            ->whereIn('project_invites.project_id', $projectIds)
+            ->get()
+            ->groupBy('project_id');
 
+        // 3. Map everything into the main projects collection
+        foreach ($projects as $project) {
+            // Map Team Members
+            $members = $teamMembers[$project->id] ?? collect();
             $project->team_members = $members->map(function ($item) {
                 return [
                     'id' => $item->team_member_id,
@@ -72,8 +164,32 @@ class ProjectChatController extends Controller
                     ]
                 ];
             })->values()->all();
+
+            // Map Invitations
+            $invites = $projectInvites[$project->id] ?? collect();
+            $project->invitations = $invites->map(function ($invite) {
+                return [
+                    'id' => $invite->invite_id,
+                    'project_id' => $invite->project_id,
+                    'sender_id' => $invite->sender_id,
+                    'receiver_id' => $invite->receiver_id,
+                    'status' => $invite->status,
+                    'created_at' => $invite->created_at,
+                    'sender' => [
+                        'id' => $invite->sender_id,
+                        'name' => $invite->sender_name
+                    ],
+                    'receiver' => [
+                        'id' => $invite->receiver_id,
+                        'name' => $invite->receiver_name
+                    ]
+                ];
+            })->values()->all();
+            
+            // Helper count property so your frontend can instantly read `project.invitations_count`
+            $project->invitations_count = count($project->invitations);
         }
-     
+    
         return response()->json([
             'projects' => $projects,
         ]);

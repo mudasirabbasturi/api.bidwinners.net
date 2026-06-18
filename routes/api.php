@@ -45,8 +45,7 @@ Route::group(['middleware' => function ($request, $next) {
     Route::get('/direct-chat-messages/{receiver_id}', [DirectChatController::class, 'getDirectMessages']);
     Route::post('/direct-chat-send-message', [DirectChatController::class, 'sendDirectMessage']);
     Route::delete('/direct-chat-message/{id}', [DirectChatController::class, 'deleteDirectMessage']);
-    Route::get('/user-conversations/{userId}', [DirectChatController::class, 'getUserConversations'])->name('userConversations');
-
+    
     Route::get('/projects', [ProjectController::class, 'Index']);
     Route::post('/project/create', [ProjectController::class, 'Create']);
     Route::get('/project-view/{id}', [ProjectController::class, 'View']);
