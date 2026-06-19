@@ -80,11 +80,44 @@ class ProjectController extends Controller
     | VIEW SINGLE PROJECT
     |-----------------------------------------
     */
+    // public function View(Request $request, $id)
+    // {
+    //     try {
+
+    //         $project = DB::table('projects')->where('id', $id)->first();
+    //         return response()->json([
+    //             'status' => true,
+    //             'message' => 'Project details fetched successfully',
+    //             'data' => $project,
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status' => false,
+    //             'message' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function View(Request $request, $id)
     {
         try {
+            $project = DB::table('projects')
+                ->leftJoin('clients', 'projects.client_id', '=', 'clients.id')
+                ->select(
+                    'projects.*',
+                    'clients.name as client_name',
+                    'clients.notes as client_notes'
+                )
+                ->where('projects.id', $id)
+                ->first();
 
-            $project = DB::table('projects')->where('id', $id)->first();
+            if (!$project) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Project not found',
+                ], 404);
+            }
+
             return response()->json([
                 'status' => true,
                 'message' => 'Project details fetched successfully',
