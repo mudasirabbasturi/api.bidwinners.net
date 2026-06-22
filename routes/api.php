@@ -9,6 +9,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ClientController;
 use Laravel\Sanctum\PersonalAccessToken;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\EmailController;
 
 // PUBLIC
 Route::post('/login', [AuthController::class, 'login']);
@@ -62,3 +63,5 @@ Route::group(['middleware' => function ($request, $next) {
     Route::get('/permissions',  [PermissionController::class, 'Index'])->name('permission.index');
     Route::get('/user-permissions', [PermissionController::class, 'UserPermissions'])->name('UserPermissions');
 });
+
+Route::post('/send-contact-email', [EmailController::class, 'sendEmail']);
