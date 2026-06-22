@@ -72,6 +72,10 @@ class DirectChatController extends Controller
             ->leftJoin('direct_chats as reply_msg', 'direct_chats.reply_to_id', '=', 'reply_msg.id')
             ->leftJoin('users as sender_user', 'direct_chats.sender_id', '=', 'sender_user.id')
             ->leftJoin('users as reply_sender', 'reply_msg.sender_id', '=', 'reply_sender.id')
+            ->leftJoin('media as profile_media', function ($join) {
+                $join->on('direct_chats.sender_id', '=', 'profile_media.user_id')
+                    ->where('profile_media.category', '=', 'profile');
+            })
             ->select(
                 'direct_chats.id',
                 'direct_chats.sender_id',
@@ -80,6 +84,7 @@ class DirectChatController extends Controller
                 'direct_chats.reply_to_id',
                 'direct_chats.created_at',
                 'sender_user.name as user_name',
+                'profile_media.file_path as user_avatar',
                 'reply_msg.message as reply_to_message',
                 'reply_sender.name as reply_to_user_name'
             )
@@ -119,7 +124,7 @@ class DirectChatController extends Controller
                 'receiverId'         => $row->receiver_id,
                 'user_id'            => $row->sender_id,
                 'user_name'          => $row->user_name,
-                'user_avatar'        => null,
+                'user_avatar'        => $row->user_avatar,
                 'content'            => $row->message ?: '',
                 'message'            => $row->message ?: '',
                 'file'               => $file,
@@ -176,6 +181,7 @@ class DirectChatController extends Controller
             $file = $request->file('file');
             
             $fileName = time() . '_' . $file->getClientOriginalName();
+            $mimeType = $file->getClientMimeType();
             $path = public_path('uploads/media/direct_chat');
             
             if (!file_exists($path)) {
@@ -199,7 +205,7 @@ class DirectChatController extends Controller
                 'id'   => $mediaId,
                 'name' => $fileName,
                 'url'  => '/uploads/media/direct_chat/' . $fileName,
-                'type' => $file->getMimeType(),
+                'type' => $mimeType,
             ];
         }
 
@@ -209,6 +215,10 @@ class DirectChatController extends Controller
             ->leftJoin('direct_chats as reply_msg', 'direct_chats.reply_to_id', '=', 'reply_msg.id')
             ->leftJoin('users as sender_user', 'direct_chats.sender_id', '=', 'sender_user.id')
             ->leftJoin('users as reply_sender', 'reply_msg.sender_id', '=', 'reply_sender.id')
+            ->leftJoin('media as profile_media', function ($join) {
+                $join->on('direct_chats.sender_id', '=', 'profile_media.user_id')
+                    ->where('profile_media.category', '=', 'profile');
+            })
             ->select(
                 'direct_chats.id',
                 'direct_chats.sender_id',
@@ -217,6 +227,7 @@ class DirectChatController extends Controller
                 'direct_chats.reply_to_id',
                 'direct_chats.created_at',
                 'sender_user.name as user_name',
+                'profile_media.file_path as user_avatar',
                 'reply_msg.message as reply_to_message',
                 'reply_sender.name as reply_to_user_name'
             )
@@ -229,7 +240,7 @@ class DirectChatController extends Controller
             'receiverId'         => $row->receiver_id,
             'user_id'            => $row->sender_id,
             'user_name'          => $row->user_name,
-            'user_avatar'        => null,
+            'user_avatar'        => $row->user_avatar,
             'content'            => $row->message ?: '',
             'message'            => $row->message ?: '',
             'file'               => $fileData,
