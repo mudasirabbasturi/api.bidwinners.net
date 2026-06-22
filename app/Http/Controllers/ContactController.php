@@ -10,6 +10,15 @@ class ContactController extends Controller
 {
     public function sendEmail(Request $request)
     {
+        // Handle preflight OPTIONS request
+        if ($request->isMethod('OPTIONS')) {
+            return response('', 200)
+                ->header('Access-Control-Allow-Origin', 'https://bidwinners.net')
+                ->header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+                ->header('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Requested-With')
+                ->header('Access-Control-Max-Age', '86400');
+        }
+
         // Validate
         $request->validate([
             'name' => 'required|string|max:255',
@@ -37,7 +46,8 @@ class ContactController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Your message has been submitted successfully! We will get back to you within 24 hours.'
-            ], 200);
+            ], 200)
+            ->header('Access-Control-Allow-Origin', 'https://bidwinners.net');
 
         } catch (\Exception $e) {
             Log::error('Contact form error: ' . $e->getMessage());
@@ -45,7 +55,8 @@ class ContactController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to submit message. Please try again.'
-            ], 500);
+            ], 500)
+            ->header('Access-Control-Allow-Origin', 'https://bidwinners.net');
         }
     }
 }
