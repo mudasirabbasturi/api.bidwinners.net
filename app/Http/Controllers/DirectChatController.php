@@ -35,6 +35,7 @@ class DirectChatController extends Controller
         $users = DB::table('users')
             ->where('users.id', '!=', $authId)
             ->where('users.status', 'active')
+            ->where('users.allow_direct_chat', 1)
             ->leftJoinSub($latestMedia, 'latest_media', function($join) {
                 $join->on('users.id', '=', 'latest_media.user_id');
             })
@@ -44,6 +45,7 @@ class DirectChatController extends Controller
 
         return response()->json(['users' => $users]);
     }
+
     /*
     |--------------------------------------------------------------------------
     | Direct Chat – Messages

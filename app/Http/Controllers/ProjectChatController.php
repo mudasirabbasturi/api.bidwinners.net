@@ -88,7 +88,7 @@ class ProjectChatController extends Controller
         $status = $request->get('status', 'All');
 
         $query = DB::table('projects')
-            ->select('id', 'project_title as name', 'project_status' , 'project_pricing','project_due_date')
+            ->select('id', 'project_title as name', 'project_status' , 'project_pricing','project_due_date', 'project_main_scope')
             ->whereNull('projects.deleted_at')
             ->orderBy('id', 'desc');
 

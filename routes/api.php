@@ -65,3 +65,5 @@ Route::group(['middleware' => function ($request, $next) {
 });
 
 Route::post('/send-contact-email', [ContactController::class, 'sendEmail']);
+
+
